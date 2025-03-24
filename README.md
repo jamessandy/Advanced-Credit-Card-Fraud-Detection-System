@@ -5,6 +5,7 @@ This project implements an advanced fraud detection system for credit card trans
 
 
 ### Architecture
+![fraud_detect drawio (1)](https://github.com/user-attachments/assets/d90db0ea-45bd-4d14-b0b1-909c586f2e07)
 
 
 ### **Technologies Used**
