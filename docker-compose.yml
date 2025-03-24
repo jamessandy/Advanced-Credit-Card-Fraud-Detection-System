@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Kafka Service
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    ports:
+      - "9093:9093" # Kafka broker port
+    environment:
+      KAFKA_ADVERTISED_LISTENER: INSIDE_KAFKA:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_LISTENER_NAME_INTERNAL: INSIDE
+      KAFKA_LISTENER_INTERNAL: INSIDE_KAFKA:9093
+      KAFKA_LISTENER_PORT: 9093
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    depends_on:
+      - zookeeper
+
+  # Zookeeper Service
+  zookeeper:
+    image: wurstmeister/zookeeper:latest
+    container_name: zookeeper
+    ports:
+      - "2181:2181" # Zookeeper port
+
+  # Spark Service
+  spark:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    container_name: spark
+    command: ["spark-submit", "--master", "local[2]", "/app/fraud_detection.py"]
+    volumes:
+      - ./spark:/app
+    depends_on:
+      - kafka
+
+  # TensorFlow Model Service
+  model:
+    build:
+      context: ./model
+      dockerfile: Dockerfile
+    container_name: model
+    command: ["python", "/app/train_model.py"]
+    volumes:
+      - ./model:/app
+    depends_on:
+      - spark
+
+  # AWS Lambda Service (simulate Lambda environment)
+  aws_lambda:
+    build:
+      context: ./aws_lambda
+      dockerfile: Dockerfile
+    container_name: aws_lambda
+    command: ["python", "/app/lambda_function.py"]
+    volumes:
+      - ./aws_lambda:/app
+    depends_on:
+      - model
+
+  # DBT Service (data transformation)
+  dbt:
+    image: fishtownanalytics/dbt:latest
+    container_name: dbt
+    working_dir: /app
+    command: ["dbt", "run"]
+    volumes:
+      - ./dbt:/app
+    depends_on:
+      - spark
+
+  # DBT Postgres Service for DBT models (optional for transformation)
+  dbt_postgres:
+    image: postgres:latest
+    container_name: dbt_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: fraud_detection
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbt_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  dbt_postgres_data:

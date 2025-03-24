@@ -1,0 +1,6 @@
+kafka-python
+pyspark
+tensorflow
+pandas
+boto3
+dbt-core
